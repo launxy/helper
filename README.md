@@ -1,4 +1,4 @@
-# 🖥️ helper — Referencia de comandos Linux en la terminal
+# helper
 
 Una herramienta de línea de comandos interactiva para consultar comandos de Linux sin salir de la terminal. Navega por categorías, busca en tiempo real y consulta sintaxis, ejemplos y opciones al instante.
 
@@ -58,7 +58,7 @@ sudo chmod +x /usr/local/bin/helper
 
 ```bash
 # Clona el repositorio
-git clone https://github.com/tu-usuario/helper.git
+git clone https://github.com/launxy/helper.git
 
 # Copia a ~/.local/bin (asegúrate de que esté en tu PATH)
 cp helper/helper.py ~/.local/bin/helper
