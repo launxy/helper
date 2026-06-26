@@ -27,7 +27,7 @@ Una herramienta de línea de comandos interactiva para consultar comandos de Lin
 
 - **Búsqueda en tiempo real** — filtra por nombre, descripción, ejemplos u opciones mientras escribes
 - **Panel de detalle** — sintaxis completa, ejemplos de uso y todas las opciones disponibles
-- **9 categorías** — Navegación, Archivos, Texto, Procesos, Red, Sistema, Compresión, Permisos, Miscelánea
+- **11 categorías** — Navegación, Archivos, Texto, Procesos, Red, Sistema, Compresión, Permisos, Miscelánea, Python, npm
 - **60+ comandos** cubiertos
 - **Sin dependencias** — solo Python 3 estándar
 
