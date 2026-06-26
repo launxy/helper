@@ -99,7 +99,7 @@ helper
 | Texto | `cat`, `less`, `grep`, `sed`, `awk`, `sort`, `uniq`, `wc`, `diff`, `head`, `tail` |
 | Procesos | `ps`, `top`, `htop`, `kill`, `killall`, `pkill`, `jobs`, `bg`, `fg`, `nohup` |
 | Red | `ping`, `curl`, `wget`, `ssh`, `scp`, `rsync`, `ss`, `ip`, `nmap` |
-| Sistema | `df`, `du`, `free`, `uname`, `uptime`, `whoami`, `sudo`, `su`, `history`, `systemctl`, `journalctl`, `dmesg`, `lsblk`, `env`, `export`, `shutdown`, `reboot` |
+| Sistema | `df`, `du`, `free`, `uname`, `uptime`, `whoami`, `sudo`, `su`, `history`, `systemctl`, `journalctl`, `dmesg`, `lsblk`, `env`, `export`, `pacman`, `yay`, `paru`, `apt`, `apt-get` `shutdown`, `reboot` |
 | Compresión | `tar`, `zip`, `unzip`, `gzip` |
 | Permisos | `umask`, `passwd`, `useradd`, `usermod` |
 | Miscelánea | `echo`, `alias`, `xargs`, `tee`, `cut`, `tr`, `date`, `man`, `which`, `watch` |
