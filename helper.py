@@ -1,15 +1,14 @@
 #!/usr/bin/env python3
-import curses
+import curses, subprocess, shutil, os, sys
 
-COMMANDS = [
-    # Navegación
+# ── Comandos hardcodeados (base garantizada) ──────────────────────────────────
+BUILTIN = [
     ("ls",        "Navegación",  "Lista archivos y directorios",                   "ls [opciones] [ruta]",          ["ls -la", "ls -lh /home"],                          ["-l formato largo", "-a mostrar ocultos", "-h tamaño legible", "-R recursivo", "-t ordenar por fecha"]),
     ("cd",        "Navegación",  "Cambia de directorio",                           "cd [ruta]",                     ["cd /home/user", "cd ..", "cd ~", "cd -"],           [".. directorio padre", "~  directorio home", "-  directorio anterior"]),
     ("pwd",       "Navegación",  "Muestra la ruta actual",                         "pwd",                           ["pwd"],                                              []),
     ("find",      "Navegación",  "Busca archivos y directorios",                   "find [ruta] [condiciones]",     ["find . -name '*.txt'", "find . -size +100M"],       ["-name por nombre", "-type f=archivo d=dir", "-mtime modificado hace N días", "-size por tamaño"]),
     ("locate",    "Navegación",  "Busca archivos usando base de datos",            "locate [patrón]",               ["locate nginx.conf", "locate -i readme"],            ["-i ignorar mayúsculas", "-n N limitar resultados"]),
     ("tree",      "Navegación",  "Muestra árbol de directorios",                   "tree [ruta]",                   ["tree", "tree -L 2", "tree -a"],                     ["-L N profundidad máxima", "-a mostrar ocultos", "-d solo directorios"]),
-    # Archivos
     ("cp",        "Archivos",    "Copia archivos o directorios",                   "cp [opciones] origen destino",  ["cp archivo.txt /backup/", "cp -r carpeta/ /bkp/"],  ["-r recursivo", "-p preservar permisos", "-i confirmar sobreescritura", "-v verbose"]),
     ("mv",        "Archivos",    "Mueve o renombra archivos",                      "mv [opciones] origen destino",  ["mv viejo.txt nuevo.txt", "mv f.txt /otro/dir/"],    ["-i confirmar sobreescritura", "-v verbose", "-n no sobreescribir"]),
     ("rm",        "Archivos",    "Elimina archivos o directorios",                 "rm [opciones] archivo",         ["rm archivo.txt", "rm -rf carpeta/", "rm -i *.log"], ["-r recursivo", "-f forzar sin confirmar", "-i pedir confirmación", "-v verbose"]),
@@ -18,7 +17,6 @@ COMMANDS = [
     ("ln",        "Archivos",    "Crea enlaces simbólicos o duros",                "ln [opciones] origen enlace",   ["ln -s /ruta/real enlace", "ln archivo hardlink"],   ["-s enlace simbólico", "-f forzar sobreescritura"]),
     ("chmod",     "Archivos",    "Cambia permisos de archivos",                    "chmod [modo] archivo",          ["chmod 755 script.sh", "chmod +x archivo"],          ["+x agregar ejecución", "755 rwx r-x r-x", "644 rw- r-- r--"]),
     ("chown",     "Archivos",    "Cambia propietario de archivos",                 "chown usuario:grupo archivo",   ["chown user archivo.txt", "chown -R u:g dir/"],      ["-R recursivo", "-v verbose"]),
-    # Texto
     ("cat",       "Texto",       "Muestra contenido de archivos",                  "cat [opciones] archivo",        ["cat archivo.txt", "cat -n archivo.txt"],            ["-n numerar líneas", "-A mostrar caracteres especiales"]),
     ("less",      "Texto",       "Visualiza archivos página por página",           "less archivo",                  ["less log.txt", "less +G log.txt"],                  ["q salir", "/ buscar", "G ir al final", "g ir al inicio"]),
     ("grep",      "Texto",       "Busca patrones en texto",                        "grep [opciones] patrón [arch]", ["grep 'error' log.txt", "grep -ri 'todo' ."],        ["-i ignorar mayúsculas", "-r recursivo", "-v líneas que NO coinciden", "-n número de línea", "-l solo nombres", "-c contar"]),
@@ -30,7 +28,6 @@ COMMANDS = [
     ("diff",      "Texto",       "Compara archivos línea por línea",               "diff [opciones] arch1 arch2",   ["diff a.txt b.txt", "diff -u a.txt b.txt"],          ["-u formato unificado", "-r comparar directorios", "-i ignorar mayúsculas"]),
     ("head",      "Texto",       "Muestra las primeras líneas",                    "head [opciones] archivo",       ["head archivo.txt", "head -n 20 log.txt"],           ["-n N mostrar N líneas (def 10)"]),
     ("tail",      "Texto",       "Muestra las últimas líneas",                     "tail [opciones] archivo",       ["tail log.txt", "tail -f /var/log/syslog"],          ["-n N mostrar N líneas", "-f seguir en tiempo real"]),
-    # Procesos
     ("ps",        "Procesos",    "Lista procesos en ejecución",                    "ps [opciones]",                 ["ps aux", "ps aux | grep nginx"],                    ["a todos los usuarios", "u formato usuario", "x sin terminal", "-e todos los procesos"]),
     ("top",       "Procesos",    "Monitor interactivo de procesos",                "top",                           ["top", "top -u usuario"],                            ["q salir", "k matar proceso", "M ordenar por memoria", "P ordenar por CPU"]),
     ("htop",      "Procesos",    "Monitor de procesos mejorado con colores",       "htop",                          ["htop", "htop -u usuario"],                          ["F9 matar proceso", "F6 ordenar", "F5 árbol de procesos"]),
@@ -41,17 +38,15 @@ COMMANDS = [
     ("bg",        "Procesos",    "Envía proceso al fondo",                         "bg [job]",                      ["bg", "bg %1"],                                      []),
     ("fg",        "Procesos",    "Trae proceso al frente",                         "fg [job]",                      ["fg", "fg %2"],                                      []),
     ("nohup",     "Procesos",    "Ejecuta comando inmune a hangups",               "nohup comando &",               ["nohup ./script.sh &"],                              []),
-    # Red
     ("ping",      "Red",         "Comprueba conectividad con un host",             "ping [opciones] host",          ["ping google.com", "ping -c 4 8.8.8.8"],             ["-c N enviar N paquetes", "-i N intervalo segundos"]),
-    ("curl",      "Red",         "Transfiere datos desde/hacia URLs",              "curl [opciones] URL",           ["curl https://example.com", "curl -O https://url/f"],["O guardar original", "-X método HTTP", "-H cabecera", "-d datos POST", "-s silencioso"]),
-    ("wget",      "Red",         "Descarga archivos desde la web",                 "wget [opciones] URL",           ["wget https://url/file.zip"],                        ["-O nombre salida", "-r recursivo", "-q silencioso", "-c continuar"]),
-    ("ssh",       "Red",         "Conexión segura a servidor remoto",              "ssh [usuario@]host",            ["ssh user@192.168.1.1", "ssh -p 2222 host"],         ["-p puerto", "-i clave privada", "-L túnel local"]),
-    ("scp",       "Red",         "Copia archivos entre hosts via SSH",             "scp origen destino",            ["scp f.txt user@host:/ruta/"],                       ["-r recursivo", "-p preservar permisos", "-P puerto"]),
-    ("rsync",     "Red",         "Sincroniza archivos local o remotamente",        "rsync [opciones] origen dest",  ["rsync -avz src/ dest/"],                            ["-a modo archivo", "-v verbose", "-z comprimir", "-n dry-run", "--delete borrar en destino"]),
-    ("ss",        "Red",         "Muestra sockets (reemplazo moderno de netstat)", "ss [opciones]",                 ["ss -tulpn", "ss -s"],                               ["-t TCP", "-u UDP", "-l escuchando", "-p proceso"]),
-    ("ip",        "Red",         "Gestión de interfaces de red y rutas",           "ip [objeto] [comando]",         ["ip addr", "ip route", "ip link show"],              ["addr direcciones IP", "route tabla de rutas", "link interfaces"]),
-    ("nmap",      "Red",         "Escáner de puertos y redes",                     "nmap [opciones] objetivo",      ["nmap 192.168.1.0/24", "nmap -sV -p 80,443 host"],   ["-sV detectar versiones", "-p puertos específicos", "-sn solo ping"]),
-    # Sistema
+    ("curl",      "Red",         "Transfiere datos con URLs",                      "curl [opciones] URL",           ["curl https://ejemplo.com", "curl -O archivo.zip"],  ["-o guardar como", "-O nombre original", "-L seguir redirecciones", "-s silencioso"]),
+    ("wget",      "Red",         "Descarga archivos de la web",                    "wget [opciones] URL",           ["wget https://ejemplo.com/archivo.zip"],             ["-O nombre destino", "-c continuar descarga", "-q silencioso"]),
+    ("ssh",       "Red",         "Conexión segura a host remoto",                  "ssh [opciones] usuario@host",   ["ssh user@192.168.1.1", "ssh -p 2222 user@host"],    ["-p puerto", "-i clave privada", "-L túnel local"]),
+    ("scp",       "Red",         "Copia archivos por SSH",                         "scp origen usuario@host:dest",  ["scp file.txt user@host:/ruta/"],                    ["-r recursivo", "-P puerto"]),
+    ("rsync",     "Red",         "Sincroniza archivos local o remoto",             "rsync [opciones] origen dest",  ["rsync -avz dir/ user@host:/dest/"],                 ["-a modo archivo", "-v verbose", "-z comprimir", "--delete borrar extras"]),
+    ("ss",        "Red",         "Muestra conexiones de red activas",              "ss [opciones]",                 ["ss -tuln", "ss -s"],                                ["-t TCP", "-u UDP", "-l escuchando", "-n numérico"]),
+    ("ip",        "Red",         "Gestiona interfaces y rutas de red",             "ip [objeto] [comando]",         ["ip addr show", "ip route show"],                    ["addr gestionar IPs", "route ver rutas", "link interfaces"]),
+    ("nmap",      "Red",         "Escáner de red y puertos",                       "nmap [opciones] host",          ["nmap 192.168.1.1", "nmap -sV -p 80,443 host"],      ["-sV detectar versiones", "-p puertos", "-A detección completa"]),
     ("df",        "Sistema",     "Muestra uso del espacio en disco",               "df [opciones]",                 ["df -h", "df -h /home"],                             ["-h tamaño legible", "-T tipo de filesystem", "-i mostrar inodos"]),
     ("du",        "Sistema",     "Muestra uso de espacio por directorio",          "du [opciones] [ruta]",          ["du -sh *", "du -h --max-depth=1 /"],                ["-s solo total", "-h tamaño legible", "--max-depth=N profundidad"]),
     ("free",      "Sistema",     "Muestra uso de memoria RAM y swap",              "free [opciones]",               ["free -h", "free -m"],                               ["-h legible", "-m en MB", "-g en GB"]),
@@ -67,17 +62,14 @@ COMMANDS = [
     ("lsblk",     "Sistema",     "Lista dispositivos de bloque (discos)",          "lsblk [opciones]",              ["lsblk", "lsblk -f"],                                ["-f mostrar filesystem", "-m mostrar permisos"]),
     ("env",       "Sistema",     "Muestra variables de entorno",                   "env [nombre=valor] [cmd]",      ["env", "env | grep PATH"],                           []),
     ("export",    "Sistema",     "Exporta variables al entorno del shell",         "export VARIABLE=valor",         ["export PATH=$PATH:/nuevo", "export DEBUG=1"],       []),
-    # Compresión
     ("tar",       "Compresión",  "Empaqueta y comprime archivos",                  "tar [opciones] archivo.tar",    ["tar -czf bkp.tar.gz dir/", "tar -xzf bkp.tar.gz"], ["-c crear", "-x extraer", "-z gzip", "-j bzip2", "-f archivo tar", "-v verbose", "-t listar"]),
     ("zip",       "Compresión",  "Comprime en formato ZIP",                        "zip [opciones] arch.zip archs", ["zip arch.zip *.txt", "zip -r bkp.zip dir/"],        ["-r recursivo", "-9 máxima compresión"]),
     ("unzip",     "Compresión",  "Extrae archivos ZIP",                            "unzip [opciones] archivo.zip",  ["unzip archivo.zip", "unzip arch.zip -d /dest/"],    ["-d directorio destino", "-l listar contenido"]),
     ("gzip",      "Compresión",  "Comprime archivos con gzip",                     "gzip [opciones] archivo",       ["gzip archivo.txt", "gzip -d archivo.txt.gz"],       ["-d descomprimir", "-k mantener original", "-9 máxima compresión"]),
-    # Permisos
     ("umask",     "Permisos",    "Define permisos por defecto de nuevos archivos", "umask [máscara]",               ["umask", "umask 022", "umask 077"],                  []),
     ("passwd",    "Permisos",    "Cambia contraseña de usuario",                   "passwd [usuario]",              ["passwd", "passwd otro_usuario"],                    []),
     ("useradd",   "Permisos",    "Crea un nuevo usuario",                          "useradd [opciones] usuario",    ["useradd -m -s /bin/bash nuevo"],                    ["-m crear home", "-s shell predeterminada", "-G grupos adicionales"]),
     ("usermod",   "Permisos",    "Modifica cuenta de usuario",                     "usermod [opciones] usuario",    ["usermod -aG sudo usuario"],                         ["-aG agregar a grupo", "-s cambiar shell", "-L bloquear cuenta"]),
-    # Miscelánea
     ("echo",      "Miscelánea",  "Imprime texto en la terminal",                   "echo [opciones] texto",         ["echo 'Hola mundo'", "echo $PATH"],                  ["-e interpretar \\n \\t", "-n sin salto de línea"]),
     ("alias",     "Miscelánea",  "Crea atajos para comandos",                      "alias nombre='comando'",        ["alias ll='ls -la'", "alias gs='git status'"],       []),
     ("xargs",     "Miscelánea",  "Construye comandos desde stdin",                 "comando | xargs [comando]",     ["find . -name '*.log' | xargs rm"],                  ["-I {} marcador de posición", "-n N args por vez", "-P N paralelo"]),
@@ -88,29 +80,71 @@ COMMANDS = [
     ("man",       "Miscelánea",  "Manual de ayuda para cualquier comando",         "man [sección] comando",         ["man ls", "man 5 passwd"],                           ["-k buscar en manuales"]),
     ("which",     "Miscelánea",  "Muestra la ruta del ejecutable de un comando",   "which comando",                 ["which python3", "which node"],                      ["-a mostrar todas las rutas"]),
     ("watch",     "Miscelánea",  "Ejecuta un comando repetidamente",               "watch [opciones] comando",      ["watch -n 2 df -h", "watch -d ls -la"],              ["-n N intervalo segundos", "-d resaltar cambios"]),
+    ("pacman",    "Sistema",     "Gestor de paquetes de Arch Linux",               "pacman [opción] [paquete]",     ["pacman -Syu", "pacman -S firefox", "pacman -R vim", "pacman -Ss python", "pacman -Qi git", "pacman -Qs nano"], ["-Syu   actualizar todo el sistema", "-S      instalar paquete", "-R      eliminar paquete", "-Rs     eliminar con dependencias", "-Rns    eliminar limpio", "-Ss     buscar en repositorios", "-Qs     buscar instalados", "-Qi     info de paquete instalado", "-Q      listar instalados", "-U      instalar desde archivo .pkg"]),
+    ("yay",       "Sistema",     "Ayudante AUR para Arch Linux (wrapper de pacman)","yay [opción] [paquete]",       ["yay -Syu", "yay -S spotify", "yay -Ss discord", "yay -R paquete", "yay -Yc"], ["-Syu   actualizar sistema + AUR", "-S      instalar paquete (repo o AUR)", "-Ss     buscar en repos y AUR", "-R      eliminar paquete", "-Yc     limpiar dependencias huérfanas", "-Ps     estadísticas del sistema", "--noconfirm sin confirmación"]),
+    ("paru",      "Sistema",     "Ayudante AUR moderno para Arch Linux",           "paru [opción] [paquete]",      ["paru -Syu", "paru -S spotify", "paru -Ss discord", "paru -R paquete", "paru -c"], ["-Syu   actualizar sistema + AUR", "-S      instalar paquete (repo o AUR)", "-Ss     buscar en repos y AUR", "-R      eliminar paquete", "-c      limpiar caché y huérfanos", "--fm    ver PKGBUILD antes de instalar", "--noconfirm sin confirmación"]),
+    ("apt",       "Sistema",     "Gestor de paquetes de Debian/Ubuntu",            "apt [comando] [paquete]",       ["apt update", "apt upgrade", "apt install vim", "apt remove firefox", "apt search python", "apt autoremove", "apt full-upgrade"], ["update   actualizar lista de paquetes", "upgrade  actualizar paquetes instalados", "full-upgrade actualizar con cambios de dependencias", "install  instalar paquete", "remove   eliminar paquete", "purge    eliminar con configuraciones", "autoremove eliminar dependencias huérfanas", "search   buscar paquete", "show     info detallada de paquete"]),
+    ("apt-get",   "Sistema",     "Interface clásica del gestor de paquetes",       "apt-get [comando] [paquete]",   ["apt-get update", "apt-get upgrade", "apt-get install gimp", "apt-get remove paquete"], ["update   actualizar lista de paquetes", "upgrade  actualizar paquetes", "dist-upgrade actualizar distribución", "install  instalar paquete", "remove   eliminar paquete", "autoremove eliminar huérfanos", "-y        aceptar sin preguntar"]),
+    ("shutdown",  "Sistema",     "Apaga o reinicia el sistema",                    "shutdown [opciones] [tiempo]",  ["shutdown now", "shutdown -h now", "shutdown -r now", "shutdown -h +10", "shutdown -c"], ["-h      apagar (halt)", "-r      reiniciar", "-c      cancelar apagado programado", "now     ahora mismo", "+N      en N minutos", "HH:MM   a una hora específica"]),
+    ("reboot",    "Sistema",     "Reinicia el sistema inmediatamente",             "reboot [opciones]",             ["reboot", "reboot --force"],                         ["--force forzar sin sincronizar discos", "--halt  apagar en vez de reiniciar"]),
+
+    # ── Python ────────────────────────────────────────────────────────────────
+    ("python",      "Python",  "Intérprete de Python 3",                          "python [opciones] [script]",    ["python script.py", "python -c 'print(1+1)'", "python -m http.server 8080"], ["-c ejecutar código inline", "-m ejecutar módulo como script", "-i modo interactivo tras ejecutar", "-u stdout sin buffer"]),
+    ("python3",     "Python",  "Intérprete explícito de Python 3",                "python3 [opciones] [script]",   ["python3 script.py", "python3 -V"],                  ["-V mostrar versión", "-m ejecutar módulo", "-c código inline"]),
+    ("pip",         "Python",  "Gestor de paquetes de Python",                    "pip [comando] [paquete]",       ["pip install requests", "pip install -r requirements.txt", "pip uninstall flask", "pip list", "pip show numpy", "pip freeze > requirements.txt"], ["install   instalar paquete", "uninstall eliminar paquete", "list      listar instalados", "show      info de paquete", "freeze    exportar dependencias", "search    buscar paquete", "-U        actualizar paquete", "--user    instalar para el usuario"]),
+    ("pip3",        "Python",  "Gestor de paquetes explícito de Python 3",        "pip3 [comando] [paquete]",      ["pip3 install requests", "pip3 list", "pip3 freeze > req.txt"], ["install   instalar paquete", "uninstall eliminar paquete", "list      listar instalados", "freeze    exportar dependencias", "-U        actualizar"]),
+    ("venv",        "Python",  "Crea entornos virtuales de Python",               "python -m venv [ruta]",         ["python -m venv .venv", "source .venv/bin/activate", "deactivate"], ["activate  activar el entorno", "deactivate salir del entorno", "--clear   recrear el entorno", "--copies  copiar binarios en vez de symlinks"]),
+    ("pipx",        "Python",  "Instala apps Python en entornos aislados",        "pipx [comando] [paquete]",      ["pipx install black", "pipx run cowsay hola", "pipx list", "pipx upgrade black"], ["install   instalar app aislada", "run       ejecutar sin instalar", "list      listar apps instaladas", "upgrade   actualizar app", "uninstall eliminar app"]),
+    ("pyenv",       "Python",  "Gestiona múltiples versiones de Python",          "pyenv [comando] [versión]",     ["pyenv install 3.12.0", "pyenv global 3.12.0", "pyenv local 3.11.0", "pyenv versions"], ["install   instalar versión", "global    versión global por defecto", "local     versión para el directorio actual", "versions  listar versiones instaladas", "shell     versión solo para la sesión"]),
+    ("black",       "Python",  "Formateador de código Python (opinionado)",       "black [opciones] [ruta]",       ["black script.py", "black src/", "black --check script.py"], ["--check   verificar sin modificar", "--diff    mostrar cambios sin aplicar", "--line-length N longitud de línea"]),
+    ("ruff",        "Python",  "Linter y formateador Python ultrarrápido",        "ruff [comando] [ruta]",         ["ruff check .", "ruff format .", "ruff check --fix ."], ["check     analizar código", "format    formatear código", "--fix     aplicar correcciones automáticas", "--select  reglas a activar"]),
+    ("mypy",        "Python",  "Verificador de tipos estáticos para Python",      "mypy [opciones] [archivo]",     ["mypy script.py", "mypy src/", "mypy --strict script.py"], ["--strict  habilitar todas las comprobaciones", "--ignore-missing-imports ignorar imports externos", "--no-error-summary resumen limpio"]),
+    ("pytest",      "Python",  "Framework de tests para Python",                  "pytest [opciones] [ruta]",      ["pytest", "pytest tests/", "pytest -v", "pytest -k 'test_login'"], ["-v        verbose", "-k EXPR   filtrar por nombre", "-x        parar en primer fallo", "-s        mostrar prints", "--tb short tracebacks cortos", "--cov     cobertura de código"]),
+    ("pydoc",       "Python",  "Genera y muestra documentación de Python",        "pydoc [módulo]",                ["pydoc os", "pydoc -b"],                             ["-b abrir docs en navegador", "-p N      servir en puerto N"]),
+    ("ipython",     "Python",  "Intérprete interactivo avanzado de Python",       "ipython",                       ["ipython", "ipython --no-banner"],                   ["? ayuda sobre objeto", "! ejecutar comando shell", "%timeit medir tiempo", "%run ejecutar script"]),
+    ("jupyter",     "Python",  "Entorno interactivo de notebooks",                "jupyter [subcomando]",          ["jupyter notebook", "jupyter lab", "jupyter nbconvert notebook.ipynb --to script"], ["notebook  lanzar notebook clásico", "lab       lanzar JupyterLab", "nbconvert convertir notebook"]),
+    ("poetry",      "Python",  "Gestión de dependencias y packaging moderno",     "poetry [comando]",              ["poetry new proyecto", "poetry add requests", "poetry install", "poetry run python script.py", "poetry shell"], ["new       crear proyecto", "add       añadir dependencia", "install   instalar dependencias", "run       ejecutar en el entorno", "shell     activar shell del entorno", "build     construir paquete", "publish   publicar en PyPI"]),
+    ("uv",          "Python",  "Gestor de proyectos Python ultrarrápido (Astral)","uv [comando]",                  ["uv init proyecto", "uv add requests", "uv run script.py", "uv pip install flask", "uv sync"], ["init      crear proyecto", "add       añadir dependencia", "run       ejecutar script en entorno", "pip       subcomandos compatibles con pip", "sync      sincronizar entorno con lockfile"]),
+
+    # ── npm ───────────────────────────────────────────────────────────────────
+    ("npm",         "npm",     "Gestor de paquetes de Node.js",                   "npm [comando] [args]",          ["npm install", "npm install express", "npm install -D eslint", "npm run dev", "npm start", "npm test", "npm build"], ["install   instalar dependencias", "install X instalar paquete", "-D / --save-dev dependencia de desarrollo", "-g        instalación global", "run       ejecutar script de package.json", "start     ejecutar script 'start'", "test      ejecutar tests", "uninstall eliminar paquete", "list      listar dependencias", "update    actualizar paquetes", "init      crear package.json", "publish   publicar en npm registry", "audit     detectar vulnerabilidades", "ci        instalación limpia desde lockfile"]),
+    ("npx",         "npm",     "Ejecuta paquetes npm sin instalarlos",            "npx [paquete] [args]",          ["npx create-react-app mi-app", "npx ts-node script.ts", "npx prettier --write ."], ["--yes     no pedir confirmación", "--no-install no descargar si no está", "-p        especificar paquete a usar"]),
+    ("node",        "npm",     "Entorno de ejecución de JavaScript",              "node [opciones] [script]",      ["node script.js", "node -e 'console.log(1+1)'", "node --inspect script.js"], ["-e        ejecutar código inline", "-v        mostrar versión", "--inspect habilitar depurador", "--watch   reejecutar al cambiar archivo (v18+)"]),
+    ("pnpm",        "npm",     "Gestor de paquetes rápido con almacén compartido","pnpm [comando] [args]",         ["pnpm install", "pnpm add express", "pnpm run dev", "pnpm dlx create-next-app ."], ["install   instalar dependencias", "add       añadir paquete", "remove    eliminar paquete", "run       ejecutar script", "dlx       ejecutar paquete sin instalar (como npx)", "-D        dependencia de desarrollo", "-g        global"]),
+    ("yarn",        "npm",     "Gestor de paquetes alternativo a npm",            "yarn [comando] [args]",         ["yarn install", "yarn add lodash", "yarn add -D typescript", "yarn dev"], ["install   instalar dependencias", "add       añadir paquete", "add -D    dependencia de desarrollo", "remove    eliminar paquete", "run       ejecutar script", "dlx       ejecutar sin instalar (yarn 2+)", "global add instalar globalmente"]),
+    ("nvm",         "npm",     "Gestiona múltiples versiones de Node.js",         "nvm [comando] [versión]",       ["nvm install 20", "nvm use 18", "nvm ls", "nvm alias default 20"], ["install   instalar versión de Node", "use       activar versión", "ls        listar versiones instaladas", "ls-remote listar versiones disponibles", "alias     definir alias (ej: default)", "current   mostrar versión activa"]),
+    ("tsc",         "npm",     "Compilador de TypeScript",                        "tsc [opciones] [archivo]",      ["tsc", "tsc --watch", "tsc --init", "tsc index.ts"], ["--watch   recompilar al guardar", "--init    crear tsconfig.json", "--noEmit  verificar tipos sin emitir archivos", "--strict  habilitar comprobaciones estrictas"]),
+    ("eslint",      "npm",     "Linter de JavaScript y TypeScript",               "eslint [opciones] [ruta]",      ["eslint src/", "eslint --fix archivo.js", "eslint --init"], ["--fix     corregir errores automáticamente", "--init    crear configuración interactiva", "--ext     extensiones a analizar"]),
+    ("prettier",    "npm",     "Formateador de código (JS, TS, CSS, HTML...)",    "prettier [opciones] [ruta]",    ["prettier --write .", "prettier --check src/", "prettier --write archivo.ts"], ["--write   formatear y guardar", "--check   verificar sin modificar", "--parser  especificar parser manualmente"]),
+    ("vite",        "npm",     "Bundler y servidor de desarrollo moderno",        "vite [subcomando]",             ["vite", "vite build", "vite preview"],               ["(sin args) iniciar servidor de desarrollo", "build     construir para producción", "preview   previsualizar build de producción"]),
+    ("webpack",     "npm",     "Bundler de módulos JavaScript",                   "webpack [opciones]",            ["webpack", "webpack --mode production", "webpack --watch"], ["--mode    development o production", "--watch   reempaquetar al cambiar archivos", "--config  usar configuración personalizada"]),
 ]
 
-CATEGORY_ORDER = ["Navegación","Archivos","Texto","Procesos","Red","Sistema","Compresión","Permisos","Miscelánea"]
+CATEGORY_ORDER = ["Navegación","Archivos","Texto","Procesos","Red","Sistema","Compresión","Permisos","Miscelánea","Python","npm"]
 CAT_COLORS = {
     "Navegación": 1, "Archivos": 2, "Texto": 3, "Procesos": 4,
-    "Red": 5, "Sistema": 6, "Compresión": 7, "Permisos": 8, "Miscelánea": 9,
+    "Red": 5, "Sistema": 6, "Compresión": 7, "Permisos": 8,
+    "Miscelánea": 9, "Python": 3, "npm": 5,
 }
+
+# ── Build list ────────────────────────────────────────────────────────────────
 
 def build_list(query):
     q = query.lower().strip()
     items = []
     for cat in CATEGORY_ORDER:
-        cmds = [c for c in COMMANDS if c[1] == cat and (
+        cmds = [c for c in BUILTIN if c[1] == cat and (
             not q or q in c[0] or q in c[2].lower()
             or any(q in e for e in c[4]) or any(q in f for f in c[5])
         )]
         if cmds:
-            if items:
-                items.append(("blank", None))
+            if items: items.append(("blank", None))
             items.append(("header", cat))
             for c in cmds:
                 items.append(("cmd", c))
     return items
+
+# ── Main ──────────────────────────────────────────────────────────────────────
 
 def main(stdscr):
     curses.curs_set(0)
@@ -132,16 +166,24 @@ def main(stdscr):
     sel_idx = 0
     scroll  = 0
 
+    last_sel_name = None
+
     while True:
         stdscr.erase()
         H, W = stdscr.getmaxyx()
         LIST_W   = 20
         DETAIL_X = LIST_W + 1
 
-        items      = build_list(query)
+        items = build_list(query)
         selectables = [i for i, it in enumerate(items) if it[0] == "cmd"]
         if sel_idx >= len(selectables): sel_idx = max(0, len(selectables) - 1)
         sel_item_idx = selectables[sel_idx] if selectables else -1
+
+        # Detectar cambio de selección
+        if sel_item_idx >= 0:
+            kind, data = items[sel_item_idx]
+            sel_name = data[0]
+            last_sel_name = sel_name
 
         # border
         for y in range(H):
@@ -150,8 +192,11 @@ def main(stdscr):
 
         # search bar
         prompt = " > "
+        status_r = " q salir | ESC limpiar "
         stdscr.addstr(0, 0, prompt, curses.color_pair(2) | curses.A_BOLD)
         stdscr.addstr(0, len(prompt), (query + "_")[:LIST_W - len(prompt)], curses.color_pair(2))
+        try: stdscr.addstr(0, W - len(status_r), status_r, curses.color_pair(9) | curses.A_DIM)
+        except: pass
         stdscr.addstr(1, 0, "─" * LIST_W, curses.color_pair(9) | curses.A_DIM)
 
         # auto-scroll
@@ -181,8 +226,9 @@ def main(stdscr):
                 try: stdscr.addstr(y, 0, f" -{data}"[:LIST_W].ljust(LIST_W), cp)
                 except: pass
             else:
-                name = data[0]
-                cp_cat = curses.color_pair(CAT_COLORS.get(data[1], 9))
+                name = data[0] if kind == "cmd" else data
+                cat  = data[1] if kind == "cmd" else "Sistema (instalado)"
+                cp_cat = curses.color_pair(CAT_COLORS.get(cat, 9))
                 if is_sel:
                     try: stdscr.addstr(y, 0, f"  {name}"[:LIST_W].ljust(LIST_W), curses.color_pair(10) | curses.A_BOLD)
                     except: pass
@@ -193,39 +239,39 @@ def main(stdscr):
                     except: pass
 
         # detail panel
+        dw = W - DETAIL_X - 1
+        def dp(y, x, text, attr=curses.A_NORMAL):
+            if y >= H or x >= dw or dw <= 0: return
+            try: stdscr.addstr(y, DETAIL_X + x, str(text)[:dw - x], attr)
+            except: pass
+
         if sel_item_idx >= 0:
-            name, cat, desc, syntax, examples, flags = items[sel_item_idx][1]
-            cp_cat = curses.color_pair(CAT_COLORS.get(cat, 9))
-            dw = W - DETAIL_X - 1
+            kind, data = items[sel_item_idx]
+            sel_name = data[0] if kind == "cmd" else data
 
-            def dp(y, x, text, attr=curses.A_NORMAL):
-                if y >= H or x >= dw: return
-                try: stdscr.addstr(y, DETAIL_X + x, text[:dw - x], attr)
-                except: pass
-
-            row = 0
-            dp(row, 0, name, cp_cat | curses.A_BOLD)
-            dp(row, len(name) + 1, f"[{cat}]", cp_cat | curses.A_DIM)
-            row += 1
-            dp(row, 0, desc, curses.color_pair(9)); row += 2
-
-            dp(row, 0, "SINTAXIS", curses.color_pair(12) | curses.A_BOLD); row += 1
-            dp(row, 0, f"  $ {syntax}", curses.color_pair(2)); row += 2
-
-            if examples:
-                dp(row, 0, "EJEMPLOS", curses.color_pair(12) | curses.A_BOLD); row += 1
-                for ex in examples:
-                    dp(row, 0, f"  $ {ex}", curses.color_pair(3)); row += 1
-                row += 1
-
-            if flags:
-                dp(row, 0, "OPCIONES", curses.color_pair(12) | curses.A_BOLD); row += 1
-                for fl in flags:
-                    parts = fl.split(" ", 1)
-                    dp(row, 0, f"  {parts[0]:<8}", curses.color_pair(2) | curses.A_BOLD)
-                    if len(parts) > 1:
-                        dp(row, 12, parts[1], curses.color_pair(9) | curses.A_DIM)
+            if kind == "cmd":
+                name, cat, desc, syntax, examples, flags = data
+                row = 0
+                cp_cat = curses.color_pair(CAT_COLORS.get(cat, 9))
+                dp(row, 0, name, cp_cat | curses.A_BOLD)
+                dp(row, len(name)+1, f"[{cat}]", cp_cat | curses.A_DIM); row += 1
+                dp(row, 0, desc, curses.color_pair(9)); row += 2
+                dp(row, 0, "SINTAXIS", curses.color_pair(12) | curses.A_BOLD); row += 1
+                dp(row, 0, f"  $ {syntax}", curses.color_pair(2)); row += 2
+                if examples:
+                    dp(row, 0, "EJEMPLOS", curses.color_pair(12) | curses.A_BOLD); row += 1
+                    for ex in examples:
+                        dp(row, 0, f"  $ {ex}", curses.color_pair(3)); row += 1
                     row += 1
+                if flags:
+                    dp(row, 0, "OPCIONES", curses.color_pair(12) | curses.A_BOLD); row += 1
+                    for fl in flags:
+                        parts = fl.split(" ", 1)
+                        dp(row, 0, f"  {parts[0]:<8}", curses.color_pair(2) | curses.A_BOLD)
+                        if len(parts) > 1:
+                            dp(row, 12, parts[1], curses.color_pair(9) | curses.A_DIM)
+                        row += 1
+
         else:
             msg = "Sin resultados"
             mid = H // 2
@@ -233,15 +279,20 @@ def main(stdscr):
             except: pass
 
         # status bar
-        bar = " ↑↓ navegar   escribe para buscar   ESC limpiar   q salir "
+        bar = " ↑↓ navegar   escribe para buscar   ESC limpiar   F5 actualizar   q salir "
         try: stdscr.addstr(H - 1, 0, bar.ljust(W)[:W], curses.color_pair(10))
         except: pass
 
         stdscr.refresh()
 
+        # Timeout para que el spinner actualice
+        stdscr.timeout(-1)
         key = stdscr.getch()
+        stdscr.timeout(-1)
 
-        if key == ord('q') and not query:
+        if key == -1:  # timeout (redraw para spinner)
+            continue
+        elif key == ord('q') and not query:
             break
         elif key == curses.KEY_UP:
             sel_idx = max(0, sel_idx - 1)
@@ -251,6 +302,9 @@ def main(stdscr):
             query = query[:-1]; sel_idx = 0; scroll = 0
         elif key == 27:
             query = ""; sel_idx = 0; scroll = 0
+
+        elif key == curses.KEY_RESIZE:
+            pass  # solo redraw
         elif 32 <= key <= 126:
             query += chr(key); sel_idx = 0; scroll = 0
 
