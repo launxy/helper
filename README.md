@@ -23,7 +23,7 @@ Una herramienta de línea de comandos interactiva para consultar comandos de Lin
 
 ---
 
-## ✨ Características
+## Características
 
 - **Búsqueda en tiempo real** — filtra por nombre, descripción, ejemplos u opciones mientras escribes
 - **Panel de detalle** — sintaxis completa, ejemplos de uso y todas las opciones disponibles
@@ -33,7 +33,7 @@ Una herramienta de línea de comandos interactiva para consultar comandos de Lin
 
 ---
 
-## 📦 Instalación
+## Instalación
 
 ### Requisitos
 
@@ -73,7 +73,7 @@ export PATH="$HOME/.local/bin:$PATH"
 
 ---
 
-## 🚀 Uso
+## Uso
 
 ```bash
 helper
@@ -90,7 +90,7 @@ helper
 
 ---
 
-## 📂 Categorías disponibles
+## Categorías disponibles
 
 | Categoría | Comandos incluidos |
 |-----------|-------------------|
@@ -106,7 +106,7 @@ helper
 
 ---
 
-## 🗑️ Desinstalación
+## Desinstalación
 
 ```bash
 sudo rm /usr/local/bin/helper
