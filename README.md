@@ -111,9 +111,3 @@ helper
 ```bash
 sudo rm /usr/local/bin/helper
 ```
-
----
-
-## 📄 Licencia
-
-MIT — úsalo, modifícalo y compártelo libremente.
