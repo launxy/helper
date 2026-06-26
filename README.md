@@ -103,7 +103,8 @@ helper
 | Compresión | `tar`, `zip`, `unzip`, `gzip` |
 | Permisos | `umask`, `passwd`, `useradd`, `usermod` |
 | Miscelánea | `echo`, `alias`, `xargs`, `tee`, `cut`, `tr`, `date`, `man`, `which`, `watch` |
-
+| Python | `python`, `python3`, `pip`, `pip3`, `venv`, `pipx`, `pyenv`, `black`, `ruff`, `mypy`, `pytest`, `pydoc`, `ipython`, `jupyter`, `poetry`, `uv` |
+| npm | `npm`, `npx`, `node`, `pnpm`, `yarn`, `nvm`, `tsc`, `eslint`, `prettier`, `vite`, `webpack` |
 ---
 
 ## Desinstalación
