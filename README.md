@@ -46,7 +46,7 @@ Esto te permite ejecutar `helper` desde cualquier directorio:
 
 ```bash
 # Clona el repositorio
-git clone https://github.com/tu-usuario/helper.git
+git clone https://github.com/launxy/helper.git
 cd helper
 
 # Mueve al PATH y dale permisos de ejecución
